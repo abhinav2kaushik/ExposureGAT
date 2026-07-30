@@ -23,9 +23,9 @@ Example:
       --data_dir GNN_Input_Data \
       --out_dir GNN_Output \
       --epochs 100
-"""
+```
 
-"""
+```
 Analyze.py
 
 Post-training analysis script for ExposureGAT.
