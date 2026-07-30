@@ -11,4 +11,19 @@ python src/ExposureGAT.py \
   --data_dir GNN_Input_Data \
   --out_dir GNN_Output \
   --epochs 100
+
+python src/Analyze.py \
+  --data_dir GNN_Input_Data \
+  --model_path GNN_Output/best_model.pth \
+  --config GNN_Output/run_config.json \
+  --out_dir GNN_Output/results \
+  --node_delta_weight 0.80 \
+  --weighted_degree_weight 0.00 \
+  --smoking_assoc_weight 0.20 \
+  --clustering_weight 0.00 \
+  --smoking_assoc_col smoking_intensity \
+  --edge_scoring_mode exposure_high \
+  --top_edge_fraction 0.10 \
+  --top_nodes 200 \
+  --top_edges 500
 ```
