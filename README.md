@@ -7,7 +7,6 @@ Multi-omics profiling can measure disease-related changes across gene expression
 ## Usage 
 
 ```python
-"""
 ExposureGAT.py
 
 Training script for ExposureGAT, an exposure-aware graph attention framework
@@ -40,5 +39,5 @@ Example:
       --model_path GNN_Output/best_model.pth \
       --config GNN_Output/run_config.json \
       --out_dir GNN_Output/results
-"""
+
 ```
