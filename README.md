@@ -6,24 +6,22 @@ Multi-omics profiling can measure disease-related changes across gene expression
 
 ## Usage 
 
-```bash
-python src/ExposureGAT.py \
-  --data_dir GNN_Input_Data \
-  --out_dir GNN_Output \
-  --epochs 100
+```python
+"""
+ExposureGAT.py
 
-python src/Analyze.py \
-  --data_dir GNN_Input_Data \
-  --model_path GNN_Output/best_model.pth \
-  --config GNN_Output/run_config.json \
-  --out_dir GNN_Output/results \
-  --node_delta_weight 0.80 \
-  --weighted_degree_weight 0.00 \
-  --smoking_assoc_weight 0.20 \
-  --clustering_weight 0.00 \
-  --smoking_assoc_col smoking_intensity \
-  --edge_scoring_mode exposure_high \
-  --top_edge_fraction 0.10 \
-  --top_nodes 200 \
-  --top_edges 500
+Training script for ExposureGAT, an exposure-aware graph attention framework
+for paired multi-omics graph learning.
+
+This script trains ExposureGAT using paired reference-transition graphs and an
+exposure-ranking objective. The model learns patient-level transition scores
+associated with exposure intensity and saves the best model based on validation
+Spearman correlation.
+
+Example:
+    python src/ExposureGAT.py \
+      --data_dir GNN_Input_Data \
+      --out_dir GNN_Output \
+      --epochs 100
+"""
 ```
