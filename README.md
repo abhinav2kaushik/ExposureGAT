@@ -6,7 +6,7 @@ Multi-omics profiling can measure disease-related changes across gene expression
 
 ## Usage 
 
-```python
+```
 ExposureGAT.py
 
 Training script for ExposureGAT, an exposure-aware graph attention framework
