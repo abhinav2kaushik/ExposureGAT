@@ -43,8 +43,6 @@ Example:
 ```
 ### Key command-line arguments
 
-```
-
 | Argument | Description |
 |---|---|
 | `--graph_dir` | Directory containing paired graph input files |
@@ -58,4 +56,4 @@ Example:
 | `--hidden_dim` | Hidden dimension for graph attention layers |
 | `--dropout` | Dropout rate |
 | `--seed` | Random seed |
-```
+
