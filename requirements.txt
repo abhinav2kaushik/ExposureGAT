@@ -1,8 +1,8 @@
-numpy==1.26.4
-pandas==2.3.3
-scipy==1.16.3
-torch==2.3.0
-torch-geometric==2.7.0
+numpy==1.26.4 or higher
+pandas==2.3.3 or higher
+scipy==1.16.3 or higher
+torch==2.3.0 or higher
+torch-geometric==2.7.0 or higher
 scikit-learn
 matplotlib
 seaborn
