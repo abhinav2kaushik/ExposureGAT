@@ -1,0 +1,21 @@
+{
+  "data_dir": "sim_GNN_Input_Data",
+  "model_path": "sim_GNN_Output/best_model.pth",
+  "config": "sim_GNN_Output/run_config.json",
+  "out_dir": "sim_GNN_Output/results",
+  "gmt_files": null,
+  "min_coverage_frac": 0.1,
+  "min_genes_in_model": 10,
+  "node_weight": 1.0,
+  "edge_weight": 1.0,
+  "top_nodes": 200,
+  "top_edges": 500,
+  "top_nodes_assoc": 30,
+  "top_edges_per_node": 5,
+  "edge_scoring_mode": "balanced",
+  "rewired_edge_percentile": 95.0,
+  "compute_gradients": false,
+  "edge_cancer_weight": 0.5,
+  "edge_exposure_weight": 0.5,
+  "rewired_edge_score_threshold": 1.2831913615988004
+}
