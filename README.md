@@ -24,7 +24,7 @@ Example:
       --out_dir GNN_Output \
       --epochs 100
 """
-```
+
 """
 Analyze.py
 
