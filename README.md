@@ -25,3 +25,20 @@ Example:
       --epochs 100
 """
 ```
+"""
+Analyze.py
+
+Post-training analysis script for ExposureGAT.
+
+This script loads a trained ExposureGAT model and extracts patient-level
+transition scores, cohort-level node and edge scores, patient-specific node
+scores, and rewiring outputs for downstream biological interpretation.
+
+Example:
+    python src/Analyze.py \
+      --data_dir GNN_Input_Data \
+      --model_path GNN_Output/best_model.pth \
+      --config GNN_Output/run_config.json \
+      --out_dir GNN_Output/results
+"""
+```
