@@ -41,8 +41,9 @@ Example:
       --out_dir GNN_Output/results
 
 ```
+### Key command-line arguments
+
 ```
-## Key command-line arguments
 
 | Argument | Description |
 |---|---|
