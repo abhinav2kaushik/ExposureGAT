@@ -1,4 +1,4 @@
-# ExposureGAT: An Exposure-Aware Graph Attention Framework for Integrative Multi-Omics Data Analysis<img width="468" height="66" alt="image" src="https://github.com/user-attachments/assets/82123c70-5023-44b4-a566-77f76915ec98" />
+# ExposureGAT: An Exposure-Aware Graph Attention Framework for Integrative Multi-Omics Data Analysis 
 
 
 # Abstract
