@@ -41,3 +41,20 @@ Example:
       --out_dir GNN_Output/results
 
 ```
+```
+## Key command-line arguments
+
+| Argument | Description |
+|---|---|
+| `--graph_dir` | Directory containing paired graph input files |
+| `--metadata` | Sample or patient metadata file |
+| `--exposure_col` | Column containing the exposure variable |
+| `--out_dir` | Output directory |
+| `--epochs` | Number of training epochs |
+| `--batch_size` | Training batch size |
+| `--lr` | Learning rate |
+| `--weight_decay` | Weight decay for optimizer |
+| `--hidden_dim` | Hidden dimension for graph attention layers |
+| `--dropout` | Dropout rate |
+| `--seed` | Random seed |
+```
