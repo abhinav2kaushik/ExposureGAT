@@ -195,13 +195,6 @@ Typical contents:
 
 This file is used to prioritize molecular features across the cohort.
 
-## `results_nodes_top200.csv`
-
-Top-ranked node table.
-
-- Contains the top-ranked nodes based on the final node priority score.
-- Useful for manuscript summaries, pathway enrichment, and biological interpretation.
-
 ## `results_edges.csv`
 
 Cohort-level edge rewiring table.
@@ -217,13 +210,6 @@ Typical contents:
 - direction of attention change
 
 This file is used to identify rewired molecular relationships.
-
-## `results_edges_top500.csv`
-
-Top-ranked edge table.
-
-- Contains the top-ranked edges based on edge rewiring score.
-- Useful for identifying candidate rewired network relationships.
 
 ## `results_top_rewired_edges.csv`
 
