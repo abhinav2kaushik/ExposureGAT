@@ -57,3 +57,4 @@ Example:
 | `--dropout` | Dropout rate |
 | `--seed` | Random seed |
 
+Please refer FileDescription for input and output file format
