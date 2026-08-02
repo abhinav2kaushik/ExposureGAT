@@ -21,9 +21,7 @@ sample/
 └── output/
     ├── results_patients.csv
     ├── results_nodes.csv
-    ├── results_nodes_top200.csv
     ├── results_edges.csv
-    ├── results_edges_top500.csv
     ├── results_top_rewired_edges.csv
     ├── results_patient_rewiring_burden.csv
     ├── results_per_patient_gene_scores.csv
