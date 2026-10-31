@@ -1,10 +1,7 @@
-numpy==1.26.4 or higher
-pandas==2.3.3 or higher
-scipy==1.16.3 or higher
-torch==2.3.0 or higher
-torch-geometric==2.7.0 or higher
-scikit-learn
+numpy
+pandas
+scipy
+torch
+torch-geometric
 matplotlib
-seaborn
-networkx
-tqdm
+scikit-learn
