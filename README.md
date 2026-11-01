@@ -255,6 +255,3 @@ the archived inputs; use the archive to reproduce published results exactly.
 
 If you use ExposureGAT, please cite: *[citation to be added]*
 
-## License
-
-*[license to be added]*
