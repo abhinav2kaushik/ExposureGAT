@@ -3,7 +3,7 @@
 Step-by-step commands to download the processed TCGA-LUAD/LUSC inputs, run ExposureGAT with the published
 settings, and generate all tables and figures. Run every command from the repository root (`ExposureGAT/`).
 
-Processed input data: ** https://doi.org/10.7910/DVN/ABBWZG ** (file `ExposureGAT_TCGA_inputs.zip`)
+Processed input data:  https://doi.org/10.7910/DVN/ABBWZG  (file `ExposureGAT_TCGA_inputs.zip`)
 
 ---
 
