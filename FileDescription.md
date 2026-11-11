@@ -268,20 +268,58 @@ indicate gained or lost interactions.
 | `exported_molecular_audit.csv` | Per modality: samples, features, non-finite values, constant rows. |
 | `cnv_profile_flags.csv`, `cnv_flags_by_tissue.csv` | Samples with all-zero (all-diploid) or constant copy-number profiles. |
 
-### 4.2 `csv/exposure_associated/`
+### 4.2 `csv/weighted_node_score/` (main output)
 
-Node priority measures contribution to the fitted score, not association with exposure. These tables
-identify nodes whose contributions track exposure beyond what shuffled-label fits produce.
+The weighted node score ranks nodes by how consistently their patient contributions align with the supplied
+exposure, with a small weight on paired-transition magnitude: W = max(A, 0) × ((1 − γ) + γ·T), where A is the
+Spearman correlation of patient contributions with exposure (median over initializations), T the percentile of
+the median paired-transition magnitude, and γ = `--gamma` (default 0.10). It is descriptive and within cohort.
+It is computed for every run (`demo`, `simulation`, `tcga`, `run`) and for every node type in the graph: each
+type is scored and ranked separately (T is the percentile among nodes of the same type), so gene ranks do not
+depend on how many CpGs are in the graph. Gene-node files carry no suffix; files for other node types carry the
+type as suffix (e.g. `weighted_node_scores_CpG.csv`, with `feature_id` in place of `entrez_id`).
 
 | File | Content |
 |---|---|
-| `Exposure_associated_node_scores_<E>epochs.csv` | Per node: `normalized_priority`, `exposure_rho` (Spearman of signed contribution with exposure, median over initializations; `_min`/`_max` across fits), `null_percentile` (share of pooled shuffled-label alignments exceeded), `exposure_associated_score` (= normalized priority × null percentile), `exposure_associated` (null percentile ≥ threshold, default 0.99), `input_delta_rho` (per-feature Spearman of the paired input difference with exposure, strongest modality). |
-| `Exposure_associated_patient_scores_<E>epochs.csv` | Per patient × exposure-associated node: priority, signed contribution, patient-level exposure-associated score. |
-| `Exposure_associated_summary.csv` | Per node type: number passing, number expected by chance, median number passing per real and per shuffled fit. |
-| `Exposure_associated_overlap_checks.csv` | Overlap of the exposure-associated set with the top-priority list and with the top per-feature correlation list, and the overlap expected by chance. |
-| `Exposure_associated_notes.txt` | Definitions and threshold. |
+| `weighted_node_scores.csv` | **Main output.** Per node: `rank`, `node_idx`, `node_label`, `entrez_id`, `weighted_node_score`, `exposure_alignment` (A), `transition_magnitude`, `transition_percentile` (T), `top_fraction` (in the top `--top_fraction`, default 10%). Gene nodes. |
+| `weighted_node_scores_CpG.csv` | The same for CpG nodes, ranked among CpGs (when CpG nodes are present). |
+| `weighted_node_scores_by_fit.csv.gz`, `weighted_node_scores_by_fit_CpG.csv.gz` | The same quantities for every fit (initializations, patient subsets, permutations), with `kind`, `run` and `selected` (in the top fraction of that fit). |
+| `patient_weighted_contributions.csv.gz`, `patient_weighted_contributions_CpG.csv.gz` | Per patient × top node: weighted score × absolute median contribution (patient-level summary). |
+| `top_genes_signed_contributions.csv`, `top_CpGs_signed_contributions.csv` | Signed contributions of the top 30 nodes per patient, patients ordered by exposure (Figure 3B data for genes). |
+| `top_gene_alignment_bins.csv`, `top_CpG_alignment_bins.csv` | Distribution of exposure alignment among the top 5%, 10% and 20% nodes (Figure 3C data for genes). |
+| `settings.json` | γ, top fraction, node types with their number of nodes and top nodes, number of fits. |
 
-### 4.3 `csv/reproducibility/`
+### 4.3 `csv/label_controls/`
+
+Real-label fits compared with shuffled-label fits (two-sided run-group randomization, 9,999 draws; Holm
+adjustment across the five primary comparisons).
+
+| File | Content |
+|---|---|
+| `patient_ranking_agreement.csv`, `cohort_ranking_agreement.csv` | Rank Spearman and top-100 Jaccard for real–real and real–shuffled fit pairs. |
+| `fixed_top5_correlations.csv` | Agreement of each fit with the fixed top 5% genes of the real-label consensus. |
+| `alignment_counts.csv`, `alignment_count_summary.csv` | Number of genes with exposure alignment ρ ≥ 0.30 per real and shuffled fit. |
+| `statistical_comparisons.csv` | Effect, p, test and Holm-adjusted p per comparison. |
+| `summary.json` | Settings and counts. |
+
+### 4.4 `csv/genes/`
+
+| File | Content |
+|---|---|
+| `direction_of_change_top_genes.csv` | Top genes by weighted node score: RNA median transition − reference, fraction higher in transition, direction; promoter-CpG methylation (complete pairs, median change, direction). |
+| `marker_ranks.csv` | Ranks and scores of the marker genes and CpGs given by `--markers`/`--marker_cpgs` (TCGA: AHRR, CYP1A1, CYP1B1, FXYD1, MYO1G and seven smoking-associated CpGs); genes are ranked among genes and CpGs among CpGs; markers not present in the graph are listed as absent. |
+
+### 4.5 `csv/gene_signatures/` (only when MSigDB GMT files are supplied)
+
+| File | Content |
+|---|---|
+| `gene_signature_table.csv` | Per signature in `resources/signature_catalog.csv`: collection, size, genes in the graph, genes in the top 10%, expected count, fold representation, retained/excluded with reason. |
+| `signature_summary.csv`, `gene_set_union_summary.csv` | Counts for the smoking- and lung cancer-related signature unions. |
+| `gene_set_membership.csv` | Signature membership of every gene, with its weighted node score, rank, exposure alignment and top-fraction flag (empty when the gene is not in the graph). |
+| `signature_counts_by_fit.csv`, `real_minus_shuffled.csv` | Signature counts in the top genes of each real and shuffled fit. |
+| `weighted_score_density_data.csv` | Density curves of weighted node scores of signature genes in the top 5%, 10% and 20% (Supplementary Figure 9 data). |
+
+### 4.6 `csv/reproducibility/`
 
 | File | Content |
 |---|---|
@@ -291,9 +329,8 @@ identify nodes whose contributions track exposure beyond what shuffled-label fit
 | `Held_out_pooled_by_patient.csv` | Per patient: mean score over fits that held the patient out. |
 | `Patient_top_node_stability.csv` | Per patient: top-node retention across seeds, splits with the patient included, splits with the patient held out. |
 | `Cohort_ranking_stability.csv` | Rank agreement and top-k overlap for every pair of seeds and every pair of splits. |
-| `Held_out_response_text.txt` | Text summary with values filled in. |
 
-### 4.4 `csv/figures/`
+### 4.7 `csv/figures/`
 
 Source data for the figures and cohort tables (file names starting with `TCGA_` are produced for any dataset).
 
@@ -305,11 +342,11 @@ Source data for the figures and cohort tables (file names starting with `TCGA_` 
 | `patient_correlations.csv` | Per dataset: Spearman of transition score and fitted score with exposure. |
 | `TCGA_available_cohort_counts.csv`, `TCGA_available_cohort_numeric.csv`, `TCGA_supplied_patient_metadata.csv` | Cohort characteristics from the supplied metadata. |
 | `TCGA_exposure_group_definitions.csv`, `TCGA_patient_plot_data.csv` | Exposure tertile groups (ties kept together) and per-patient data. |
-| `TCGA_top10percent_genes.csv`, `Top_cohort_gene_nodes_all_ranked.csv`, `Top_cohort_CpG_nodes_all_ranked.csv` | Cohort gene and CpG rankings (top 10% and full list). |
+| `TCGA_top10percent_genes.csv`, `Top_cohort_gene_nodes_all_ranked.csv`, `Top_cohort_CpG_nodes_all_ranked.csv` | Cohort gene and CpG rankings by node priority (top 10% and full list); the main ranking is in `csv/weighted_node_score/`. |
 | `TCGA_top_edges.csv`, `TCGA_top_CpG_gene_edges.csv`, `TCGA_top_CpG_nodes.csv` | Top cohort edges, CpG–gene edges and CpG nodes. |
 | `TCGA_selection_boundaries.csv`, `TCGA_Supp7_cutoffs.csv` | Top-fraction cutoffs used for selections. |
 | `TCGA_patient_node_edge_summaries.csv`, `TCGA_Supp8_patient_values.csv`, `TCGA_node_edge_correlation.csv` | Per-patient node and edge summaries and their relationship. |
-| `TCGA_Supp10_*` | Values behind the CpG heatmap. |
+| `TCGA_Supp10_*` | Values behind the CpG heatmap (produced when CpG nodes are present). |
 | `edge_selection_vs_graph_baseline.csv`, `actual_input_degrees.csv`, `node_edge_summary_plot_data.csv`, `edge_attention_plot_data.csv`, `patient_edge_heatmap_data.csv` | Edge selection by endpoint class, input degrees, connectivity and attention summaries. |
 | `observed_magnitude_data.csv`, `magnitude_exposure_correlations.csv` | Raw paired input change per patient and its correlation with exposure. |
 | `AUROC_by_dataset.csv`, `AUROC_summary.csv`, `top_node_recovery.csv` | Simulated data only: recovery of planted node sets. |
@@ -323,21 +360,36 @@ Each figure is saved as PDF and PNG.
 
 | Folder / file | Content |
 |---|---|
-| `figures/Fit_check_real_vs_shuffled` | Fitted vs recorded exposure rank, next to fitted agreement for real and shuffled labels. |
-| `figures/Node_agreement_real_vs_shuffled` | Node ranking agreement between real-label fits vs real- and shuffled-label fits (patient and cohort). |
-| `figures/Predicted_vs_actual_smoking_rank`, `Predicted_rank_vs_recorded_smoking` | In-sample fitted score vs exposure. |
-| `figures/Patient_transition_vs_normalized_exposure` | Patient paired-change magnitude vs exposure. |
-| `figures/Figure3B_*`, `Figure3C_*`, `Figure3_ABC_no_pathway_panel` | Patient node contributions and edge strength by exposure group (descriptive). |
-| `figures/Top_cohort_gene_nodes`, `Top_cohort_CpG_nodes`, `Additional_patient_node_heatmap`, `Additional_patient_edge_heatmap` | Top cohort nodes and patient-level node/edge priority heatmaps. |
-| `figures/Additional_node_confidence`, `Additional_edge_confidence`, `Additional_final_fit_correlations` | Stability and null summaries; per-fit agreement. |
-| `figures/Supp1_training_losses`, `TCGA_Supp6_training` | Training loss curves. |
-| `figures/Supp3_*`, `Supp4_*`, `Supp5_*`, `Edge_message_change_vs_priority`, `Additional_attention_change_vs_edge_priority` | Node transition scores, edge selection and priority, connectivity, edge delta and attention vs priority. |
-| `figures/TCGA_Supp7_*`, `TCGA_Supp8_*`, `TCGA_Supp10_*` | Score distributions and cutoffs, node–edge relationship, CpG summaries. |
-| `figures/Reviewer_magnitude_and_connectivity` | Raw paired change vs exposure; input connectivity. |
-| `figures/Figure2_combined`, `Reviewer_A_vs_C_recovery`, `Reviewer_node_recall`, `Reviewer_top_nodes_vs_expectation`, `Supp2_*` | Simulated data only: recovery of planted node sets. |
-| `exposure_associated/Exposure_associated_genes_heatmap`, `..._CpGs_heatmap` | Signed contributions of exposure-associated nodes per patient, ordered by exposure. |
-| `exposure_associated/Exposure_associated_counts_real_vs_shuffled` | Number of nodes passing the exposure-alignment rule in each real and shuffled fit vs chance. |
+| `weighted_node_score/Top_genes_signed_contributions_heatmap` | Signed contributions of the top 30 genes by weighted node score per patient, ordered by exposure (Figure 3B). |
+| `weighted_node_score/Top_CpGs_signed_contributions_heatmap`, `Top_CpG_exposure_alignment` | The same for CpG nodes (when present). |
+| `weighted_node_score/Top_gene_exposure_alignment` | Exposure alignment of the top 5%, 10% and 20% genes (Figure 3C). |
+| `label_controls/Ranking_agreement_real_vs_shuffled` | Ranking agreement between real-label fits vs real- and shuffled-label fits (Supplementary Figure 10). |
+| `label_controls/Exposure_aligned_gene_counts`, `Fixed_top5_agreement_with_shuffled_fits` | Aligned-gene counts and fixed top 5% agreement, real vs shuffled (Supplementary Figure 11). |
+| `gene_signatures/Smoking_signatures`, `Lung_cancer_signatures` | Representation of signature genes in the top 10% (Supplementary Figures 12–13). |
+| `gene_signatures/Weighted_score_density_*` | Weighted scores of signature genes vs all genes (Supplementary Figure 9). |
+| `figures/Fitted_vs_recorded_exposure_rank`, `Fitted_rank_vs_recorded_exposure` | In-sample fitted score vs exposure (Figure 3A). |
+| `figures/Fit_check_real_vs_shuffled`, `Node_agreement_real_vs_shuffled` | Fitted agreement and node ranking agreement, real vs shuffled labels. |
+| `figures/Patient_transition_vs_normalized_exposure` | Patient paired-transition magnitude vs exposure. |
+| `figures/Patient_node_contributions_by_exposure_group`, `Patient_edge_strength_by_exposure_group`, `Patient_summaries_combined` | Patient node and edge summaries by exposure tertile (descriptive). |
+| `figures/Top_cohort_gene_nodes`, `Additional_patient_node_heatmap`, `Additional_patient_edge_heatmap` | Top cohort genes by node priority; patient node/edge priority heatmaps. |
+| `figures/Additional_node_confidence`, `Additional_edge_confidence`, `Additional_final_fit_correlations` | Stability summaries; per-fit agreement. |
+| `figures/Supp1_training_losses`, `TCGA_Supp6_training` | Training loss curves (Supplementary Figure 6 for TCGA). |
+| `figures/Supp2_*`, `Supp3_*`, `Supp4_*`, `Supp5_*`, `Edge_message_change_vs_priority`, `Additional_attention_change_vs_edge_priority` | Node priority, paired-transition scores, edge selection and priority, connectivity, message and attention change vs edge priority. |
+| `figures/TCGA_Supp7_*`, `TCGA_Supp8_*` | Node and edge priority distributions and cutoffs; node–edge relationship (Supplementary Figures 7–8). |
+| `figures/Figure2_combined`, `Simulation_*` | Simulated data only: recovery of planted node sets. |
 | `reproducibility/Held_out_and_stability` | Fitted and held-out agreement; top-node retention across seeds and splits; cohort ranking agreement. |
+
+### 5.1 Simulation benchmark: `results/simulation/` (`python3 exposureGAT.py simulation`)
+
+| File | Content |
+|---|---|
+| `manifest.csv` | Simulated datasets (one per seed) and their result folders `seed_<n>/`. |
+| `seed_<n>/model/` | Model outputs per dataset (Section 3). |
+| `seed_<n>/weighted_node_score/` | Weighted node scores per dataset (Section 4.2). |
+| `figures/Figure_2` | AUROC of exposure-linked (A) vs fixed-shift (C) nodes, top-k recovery and patient agreement (Figure 2; curves averaged across datasets). |
+| `figures/AUROC_by_dataset.csv`, `AUROC_summary.csv`, `repetition_AUROC.csv`, `topk_recovery.csv`, `node_scores.csv`, `top100_seed_<n>.csv` | Data behind Figure 2. |
+| `figures/Supplement_1_training` … `Supplement_5_robustness`, `design_audit.csv`, `patient_magnitude_audit.csv`, `actual_node_degrees.csv` | Training curves, node priority by class, cohort node priority by class, design checks and robustness (Supplementary Figures 1–5). |
+| `supplementary_figures/` | Additional simulation figures from `plot_simulation_supplement.R`. |
 
 ---
 
@@ -345,10 +397,14 @@ Each figure is saved as PDF and PNG.
 
 | Script | Output |
 |---|---|
-| `src/simulation/simulate_data.py` | A simulated input folder (Section 1), used by `python3 exposureGAT.py demo`. |
+| `src/simulation/simulate_three_set.py` | A simulated input folder (Section 1) with planted exposure-linked (A), fixed-shift (C) and background (B) nodes; used by `demo` and `simulation`. |
+| `src/simulation/plot_simulation.py`, `plot_simulation_supplement.R` | Figure 2 and simulation supplementary figures (Section 5.1). |
+| `src/scoring/weighted_node_score.py` | Section 4.2 from a `model/` folder. |
+| `src/analysis/label_controls.py`, `src/plotting/plot_label_controls.R` | Section 4.3 and its figures. |
+| `src/analysis/direction_of_change.py`, `marker_ranks.py` | Section 4.4. |
+| `src/analysis/gene_signatures.py`, `src/plotting/plot_gene_signatures.R` | Section 4.5 and its figures (needs MSigDB Entrez GMT files). |
 | `src/make_analysis_cohort.py` | A copy of an input folder with excluded patients removed, plus `cohort_selection.csv`. |
 | `src/diagnose_exposure.py` | Training-length (`--stage opt`), loss-weight (`loss`), capacity (`capacity`) and input-signal (`ceiling`) diagnostics: `trajectory.csv`, `checkpoint_summary.csv`, `ceiling_cv_ridge.csv`, figures. |
-| `src/analysis/node_heatmaps.R` | Heatmaps of top-priority genes and CpGs across several runs (one page per run). |
 | `src/preprocessing/build_tcga_inputs.R` | TCGA inputs (Section 1) from GDC data. |
 | `src/preprocessing/normalize_rna.R` | Input folder with TMM log2-CPM RNA, plus `rna_normalization_checks/`. |
 | `src/preprocessing/missingness_report.R` | `Missingness_table.csv`: replaced methylation, copy-number and CpG values, and exposure zeros by smoking status. |
