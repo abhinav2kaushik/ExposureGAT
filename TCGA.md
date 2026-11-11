@@ -94,8 +94,8 @@ When it finishes, results are in `results/tcga/`. Where each manuscript result c
 | Supplementary Figure 11 (aligned-gene counts; top 5% agreement) | `plots/label_controls/Exposure_aligned_gene_counts.*`, `Fixed_top5_agreement_with_shuffled_fits.*` |
 | Supplementary Figures 12–13 (signature representation) | `plots/gene_signatures/Smoking_signatures.*`, `Lung_cancer_signatures.*` |
 | Supplementary Data 1 (direction of change, top 10%) | `csv/genes/direction_of_change_top_genes.csv` |
-| Supplementary Data 2 (gene-signature results) | `csv/gene_signatures/gene_signature_table.csv` |
-| Supplementary Data 3 (smoking anchors) | `csv/genes/marker_ranks.csv` |
+| Gene-signature results (all 49 sets) | `csv/gene_signatures/gene_signature_table.csv` |
+| Ranks of smoking-anchor genes and CpGs | `csv/genes/marker_ranks.csv` |
 | Held-out agreement and ranking stability | `csv/reproducibility/Held_out_summary.csv` |
 | Real- vs shuffled-label statistics | `csv/label_controls/statistical_comparisons.csv` |
 
