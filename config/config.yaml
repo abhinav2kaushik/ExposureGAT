@@ -1,0 +1,53 @@
+# ExposureGAT workflow settings (published analysis).
+# Run:  snakemake --cores 8                 (TCGA cohort + simulation benchmark)
+#       snakemake --cores 8 cohort          (cohort only)
+#       snakemake --cores 8 simulation      (simulation only)
+
+# ---------------------------------------------------------------------------
+# Cohort analysis: TCGA lung cancer (or any input folder, see FileDescription.md)
+# ---------------------------------------------------------------------------
+cohort:
+  name: tcga                                  # results go to results/<name>/
+  data_dir: data/tcga                         # input folder (metadata_samples.csv, X_*.csv, edges_*.csv, map_*.csv)
+  zip: ExposureGAT_TCGA_inputs.zip            # unpacked into data_dir if data_dir is empty (Harvard Dataverse)
+  exposure_col: smoking_intensity
+  reference_label: NT                         # tissue_type of the reference sample
+  transition_label: TP                        # tissue_type of the transition sample
+  scaling: per_gene
+  epochs: 600
+  lr: 0.003
+  hidden: 8
+  initializations: 10
+  subsets: 20
+  permutations: 20
+  top_k: 100
+  seed: 42
+  gamma: 0.10                                 # weight of paired-transition magnitude in the weighted node score
+  top_fraction: 0.10                          # top fraction reported for each node type
+  gmt_dir: MSigDB                             # MSigDB GMT (.gmt or .gmt.zip); set to "" to skip gene signatures
+  catalog: resources/signature_catalog.csv
+  gene_symbols: ""                            # optional CSV (entrez_id,symbol) for Figure 3B labels
+  marker_genes: "57491,1543,1545,5348,64005"  # AHRR, CYP1A1, CYP1B1, FXYD1, MYO1G
+  marker_cpgs: "cg05575921,cg03636183,cg21161138,cg19816560,cg05951221,cg06125433,cg25648203"
+
+# ---------------------------------------------------------------------------
+# Simulation benchmark (Figure 2, Supplementary Figures 1-5)
+# ---------------------------------------------------------------------------
+simulation:
+  name: simulation                            # results go to results/<name>/
+  seeds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]      # one independent dataset per seed
+  patients: 250
+  genes: 400
+  set_a: 80
+  set_c: 80
+  degree: 8
+  epochs: 60
+  lr: 0.003
+  hidden: 8
+  initializations: 10
+  subsets: 20
+  permutations: 20
+  top_k: 100
+  seed: 42
+  gamma: 0.10
+  top_fraction: 0.10

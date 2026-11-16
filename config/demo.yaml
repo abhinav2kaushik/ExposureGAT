@@ -1,0 +1,44 @@
+# Quick test (a few minutes on a laptop): a small simulation, and the cohort workflow run on
+# the first simulated dataset.   snakemake --cores 4 --configfile config/demo.yaml
+cohort:
+  name: demo_cohort
+  data_dir: results/demo_simulation/data/seed_1   # created by the simulation rules
+  zip: ""
+  exposure_col: smoking_intensity
+  reference_label: NT
+  transition_label: TP
+  scaling: shared
+  epochs: 100
+  lr: 0.003
+  hidden: 8
+  initializations: 3
+  subsets: 4
+  permutations: 4
+  top_k: 30
+  seed: 42
+  gamma: 0.10
+  top_fraction: 0.10
+  gmt_dir: ""                                     # simulated genes have no MSigDB identifiers
+  catalog: resources/signature_catalog.csv
+  gene_symbols: ""
+  marker_genes: ""
+  marker_cpgs: ""
+
+simulation:
+  name: demo_simulation
+  seeds: [1, 2]
+  patients: 60
+  genes: 80
+  set_a: 16
+  set_c: 16
+  degree: 6
+  epochs: 60
+  lr: 0.003
+  hidden: 8
+  initializations: 3
+  subsets: 4
+  permutations: 4
+  top_k: 30
+  seed: 42
+  gamma: 0.10
+  top_fraction: 0.10
