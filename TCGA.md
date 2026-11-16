@@ -1,7 +1,8 @@
 # Reproducing the TCGA analysis
 
-Step-by-step commands to download the processed TCGA-LUAD/LUSC inputs, run ExposureGAT with the published
-settings, and regenerate all tables and figures. Run every command from the repository root (`ExposureGAT/`).
+Step-by-step instructions to download the processed TCGA-LUAD/LUSC inputs, run ExposureGAT with the
+published settings, and regenerate the manuscript tables and figures. Run every command from the
+repository root (`ExposureGAT/`).
 
 Processed input data: **https://doi.org/10.7910/DVN/ABBWZG** (Harvard Dataverse; file `ExposureGAT_TCGA_inputs.zip`)
 
@@ -13,41 +14,23 @@ Processed input data: **https://doi.org/10.7910/DVN/ABBWZG** (Harvard Dataverse;
 git clone https://github.com/abhinav2kaushik/ExposureGAT.git
 cd ExposureGAT
 
-python3 -m pip install -r requirements.txt
+python3 -m pip install -r requirements.txt          # includes Snakemake
 Rscript -e 'install.packages(c("dplyr","tidyr","readr","ggplot2","patchwork","jsonlite","ggpubr"), repos = "https://cloud.r-project.org")'
 ```
 
 ## 2. Download the input data
 
-The inputs must be unpacked into `tmp/tcga_data/`, so that this file exists:
+Download `ExposureGAT_TCGA_inputs.zip` from https://doi.org/10.7910/DVN/ABBWZG and place it in the
+repository root:
 
 ```text
-ExposureGAT/tmp/tcga_data/metadata_samples.csv
+ExposureGAT/ExposureGAT_TCGA_inputs.zip
 ```
 
-**Option A: automatic.** `exposureGAT.py` downloads and unpacks the archive itself when given the direct
-download link of `ExposureGAT_TCGA_inputs.zip` from the Dataverse record (this also starts the analysis, step 4):
+That is all: the workflow unpacks it into `data/tcga/` on the first run. (If you prefer to unpack it
+yourself, put the files so that `data/tcga/metadata_samples.csv` exists.)
 
-```bash
-python3 exposureGAT.py tcga --url "<direct link to ExposureGAT_TCGA_inputs.zip>"
-```
-
-**Option B: manual.** Download `ExposureGAT_TCGA_inputs.zip` from https://doi.org/10.7910/DVN/ABBWZG into the
-repository root, then:
-
-```bash
-mkdir -p tmp
-unzip -q ExposureGAT_TCGA_inputs.zip -d tmp/
-mv tmp/ExposureGAT_TCGA_inputs tmp/tcga_data
-```
-
-Check the download (expected: `patients: 59`):
-
-```bash
-python3 -c "import pandas as pd; m = pd.read_csv('tmp/tcga_data/metadata_samples.csv'); print('patients:', m.patient_id.nunique())"
-```
-
-## 3. MSigDB gene sets (for the gene-signature step)
+## 3. MSigDB gene sets
 
 The gene sets are included in the repository: the full MSigDB v2026.1 file with **Entrez IDs**
 (all collections), zipped because of GitHub's file-size limit:
@@ -56,79 +39,79 @@ The gene sets are included in the repository: the full MSigDB v2026.1 file with 
 ExposureGAT/MSigDB/msigdb.v2026.1.Hs.entrez.gmt.zip
 ```
 
-Nothing needs to be downloaded or unzipped: `python3 exposureGAT.py tcga` uses the `MSigDB/` folder
-automatically, and the gene-signature script reads the zipped file directly. (An unzipped
-`msigdb.v2026.1.Hs.entrez.gmt` in the same folder also works. Source: https://www.gsea-msigdb.org.)
-
+Nothing needs to be downloaded or unzipped; the gene-signature step reads the zipped file directly.
 The 49 signatures used in the paper (smoking-, nicotine- and lung cancer-related; 44 from C2 and 5 from
-C5) are listed in `resources/signature_catalog.csv`. If the `MSigDB/` folder is missing, the
-gene-signature step is skipped and everything else runs.
+C5) are listed in `resources/signature_catalog.csv`. Source: https://www.gsea-msigdb.org.
 
 ## 4. Run the analysis
 
+Check what will run (dry run), then run it:
+
 ```bash
-python3 exposureGAT.py tcga
+snakemake -n cohort
+snakemake --cores 8 cohort
 ```
 
-The run uses the published settings (600 epochs, learning rate 0.003, hidden dimension 8, 10 initializations,
-20 patient subsets, 20 exposure permutations, seed 42, weighted node score with gamma 0.10 and top 10%) and
-takes several hours on a CPU. To keep it running after closing the terminal:
+The workflow uses the published settings in `config/config.yaml` (600 epochs, learning rate 0.003,
+hidden dimension 8, 10 initializations, 20 patient subsets, 20 exposure permutations, seed 42, weighted
+node score with gamma 0.10 and top 10%). Model fitting takes several hours on a CPU. To keep it running
+after closing the terminal:
 
 ```bash
-nohup python3 exposureGAT.py tcga > tcga_run.log 2>&1 &
+nohup snakemake --cores 8 cohort > tcga_run.log 2>&1 &
 tail -f tcga_run.log
 ```
 
-When it finishes, results are in `results/tcga/`. Where each manuscript result comes from:
+If the run is interrupted, run the same command again: Snakemake resumes from the last completed
+step. Each step writes a log to `results/tcga/logs/`.
+
+## 5. Where each manuscript result comes from
+
+All files are in `results/tcga/`. Figures are in `figures/` as PDF and PNG, with their data as CSV.
 
 | Manuscript item | File |
 |---|---|
-| Weighted node scores, top 10% genes (main output) | `csv/weighted_node_score/weighted_node_scores.csv` (CpG nodes: `weighted_node_scores_CpG.csv`) |
-| Figure 3A (fitted vs recorded exposure rank) | `plots/figures/Fitted_vs_recorded_exposure_rank.*` |
-| Figure 3B (top 30 genes, signed contributions) | `plots/weighted_node_score/Top_genes_signed_contributions_heatmap.*`, data `csv/weighted_node_score/top_genes_signed_contributions.csv` |
-| Figure 3C (exposure alignment of top 5/10/20%) | `plots/weighted_node_score/Top_gene_exposure_alignment.*`, data `csv/weighted_node_score/top_gene_alignment_bins.csv` |
-| Supplementary Figure 6 (training losses) | `plots/figures/TCGA_Supp6_training.*` |
-| Supplementary Figures 7–8 (node and edge priorities) | `plots/figures/TCGA_Supp7_*`, `TCGA_Supp8_*` |
-| Supplementary Figure 9 (weighted scores of signature genes) | `plots/gene_signatures/Weighted_score_density_*` |
-| Supplementary Figure 10 (ranking agreement) | `plots/label_controls/Ranking_agreement_real_vs_shuffled.*` |
-| Supplementary Figure 11 (aligned-gene counts; top 5% agreement) | `plots/label_controls/Exposure_aligned_gene_counts.*`, `Fixed_top5_agreement_with_shuffled_fits.*` |
-| Supplementary Figures 12–13 (signature representation) | `plots/gene_signatures/Smoking_signatures.*`, `Lung_cancer_signatures.*` |
-| Supplementary Data 1 (direction of change, top 10%) | `csv/genes/direction_of_change_top_genes.csv` |
-| Gene-signature results (all 49 sets) | `csv/gene_signatures/gene_signature_table.csv` |
-| Ranks of smoking-anchor genes and CpGs | `csv/genes/marker_ranks.csv` |
-| Held-out agreement and ranking stability | `csv/reproducibility/Held_out_summary.csv` |
-| Real- vs shuffled-label statistics | `csv/label_controls/statistical_comparisons.csv` |
+| Weighted node scores, top 10% genes (main output) | `weighted_node_score/weighted_node_scores.csv` |
+| Figure 3A (fitted vs recorded exposure rank) | `figures/Figure_3A.pdf` |
+| Figure 3B (top 30 genes, signed contributions) | `figures/Figure_3B.pdf`; data `weighted_node_score/top_genes_signed_contributions.csv` |
+| Figure 3C (exposure alignment of top 5/10/20%) | `figures/Figure_3C.pdf`; data `weighted_node_score/top_gene_alignment_bins.csv` |
+| Supplementary Figure 6 (training losses) | `figures/Supplementary_Figure_06.pdf` |
+| Supplementary Figure 7 (node and edge priority distributions) | `figures/Supplementary_Figure_07.pdf` |
+| Supplementary Figure 8 (edge vs node priority) | `figures/Supplementary_Figure_08.pdf` |
+| Supplementary Figure 9 (weighted scores of signature genes) | `figures/Supplementary_Figure_09A.pdf`, `09B.pdf` |
+| Supplementary Figure 10 (ranking agreement, real vs shuffled labels) | `figures/Supplementary_Figure_10.pdf` |
+| Supplementary Figure 11 (aligned-gene counts; fixed top 5% agreement) | `figures/Supplementary_Figure_11A.pdf`, `11B.pdf` |
+| Supplementary Figures 12–13 (signature representation) | `figures/Supplementary_Figure_12.pdf`, `13.pdf` |
+| Gene-signature results (all 49 sets) | `gene_signatures/gene_signature_table.csv` |
+| Real- vs shuffled-label statistics (Holm-adjusted) | `label_controls/statistical_comparisons.csv` |
+| Held-out agreement and ranking stability | `reproducibility/Held_out_summary.csv` |
+| Direction of tumor–normal change of the top 10% genes | `genes/direction_of_change_top_genes.csv` |
+| Ranks of the smoking-anchor genes and CpGs | `genes/marker_ranks.csv` |
 
-To start again from scratch, remove the previous results first: `rm -rf results/tcga`.
+Figure 3B labels genes by Entrez ID; to show gene symbols, set `gene_symbols` in `config/config.yaml`
+to a CSV with columns `entrez_id,symbol`.
 
-## 5. Regenerate tables and figures only (no refitting)
+## 6. Regenerate tables and figures only (no refitting)
 
-After step 4, every post-fit step can be rerun from `results/tcga/model/` in a few minutes:
+The fitted models in `results/tcga/model/` are reused automatically. To redraw figures or recompute a
+post-fit step, force only that step, for example:
 
 ```bash
-M=results/tcga/model; OUT=results/tcga/rerun; mkdir -p $OUT
-python3 src/scoring/weighted_node_score.py --model $M --out $OUT/weighted_node_score
-python3 src/analysis/label_controls.py --model $M --weighted $OUT/weighted_node_score --out $OUT/label_controls
-Rscript src/plotting/plot_label_controls.R $OUT/label_controls
-python3 src/analysis/direction_of_change.py --data tmp/tcga_data --weighted $OUT/weighted_node_score --out $OUT/genes
-python3 src/analysis/marker_ranks.py --model $M --weighted $OUT/weighted_node_score --out $OUT/genes \
-  --genes 57491,1543,1545,5348,64005 --cpgs cg05575921,cg03636183,cg21161138,cg19816560,cg05951221,cg06125433,cg25648203
-python3 src/analysis/gene_signatures.py --weighted $OUT/weighted_node_score --gmt MSigDB --out $OUT/gene_signatures
-Rscript src/plotting/plot_gene_signatures.R $OUT/gene_signatures $OUT/weighted_node_score
-Rscript src/plotting/plot_results.R tmp/tcga_data $M $OUT/figures
-Rscript src/analysis/held_out_summary.R $M $OUT/reproducibility
+snakemake --cores 4 cohort --forcerun cohort_figures label_controls gene_signatures
 ```
 
-## 6. Optional: training-length check
+To start again from scratch: `rm -rf results/tcga`.
+
+## 7. Optional: training-length check
 
 Reproduces the choice of 600 epochs by comparing real-label and shuffled-label fits up to 800 epochs
 (about 30 minutes):
 
 ```bash
-python3 src/diagnose_exposure.py --data_dir tmp/tcga_data --out_dir results/tcga_training_length \
+python3 src/diagnose_exposure.py --data_dir data/tcga --out_dir results/tcga_training_length \
   --stage opt --lrs 0.003 --epochs 800 --checkpoints 400 500 600 800 --threads 4
 ```
 
 ---
 
-Settings, all options and output descriptions: [README.md](README.md) and [FileDescription.md](FileDescription.md).
+Settings and output descriptions: [README.md](README.md) and [FileDescription.md](FileDescription.md).

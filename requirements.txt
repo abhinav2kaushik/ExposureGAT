@@ -1,3 +1,4 @@
+snakemake>=8
 numpy
 pandas
 scipy

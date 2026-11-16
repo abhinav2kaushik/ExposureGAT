@@ -11,7 +11,7 @@ same attention network; exposure is not a model input and enters only as the tra
 within-patient differences, ExposureGAT derives a signed contribution of every node in every patient,
 node and edge priorities, and the **weighted node score**, its main output: a cohort-level node ranking
 by the alignment of each node's patient-specific contributions with exposure. The weighted node score is
-produced by every run (demo, simulation, TCGA and your own data) and for every node type (genes, CpGs). Reproducibility and
+produced by every run (simulation, TCGA and your own data) and for every node type (genes, CpGs). Reproducibility and
 exposure-label dependence are quantified with built-in initialization, patient-subset and
 exposure-permutation analyses. The framework is evaluated on simulated paired multi-omics data and on
 paired TCGA lung adenocarcinoma and squamous cell carcinoma samples.
@@ -26,107 +26,96 @@ individuals. See [Scope and intended use](#scope-and-intended-use).
 ```bash
 git clone https://github.com/abhinav2kaushik/ExposureGAT.git
 cd ExposureGAT
-python3 -m pip install -r requirements.txt
+python3 -m pip install -r requirements.txt          # includes Snakemake
 Rscript -e 'install.packages(c("dplyr","tidyr","readr","ggplot2","patchwork","jsonlite","ggpubr"))'
 
-python3 exposureGAT.py demo
+snakemake --cores 4 --configfile config/demo.yaml   # quick test, about 2 minutes
 ```
 
-The demo simulates a small paired dataset (60 patients, 80 genes) with the manuscript's simulation
-design, fits the model with a few repetitions, and writes all tables and figures to `results/demo/`.
-It takes about 1–2 minutes on a laptop CPU. The main result is
-`results/demo/csv/weighted_node_score/weighted_node_scores.csv`.
+The demo simulates two small datasets, runs the simulation benchmark and the cohort analysis on
+them, and writes every table and figure to `results/demo_simulation/` and `results/demo_cohort/`.
+The main result is `results/demo_cohort/weighted_node_score/weighted_node_scores.csv`.
 
-## Commands
+## Workflow
+
+The analysis is a [Snakemake](https://snakemake.readthedocs.io) workflow (`Snakefile`); all settings
+are in `config/config.yaml`.
 
 | Command | What it does |
 |---|---|
-| `python3 exposureGAT.py demo` | small simulated dataset, full pipeline |
-| `python3 exposureGAT.py simulation` | the simulation benchmark of the manuscript (10 datasets; Figure 2, Supplementary Figures 1–5) |
-| `python3 exposureGAT.py tcga` | the published TCGA analysis (see [TCGA.md](TCGA.md)) |
-| `python3 exposureGAT.py run --data DIR` | your own data |
+| `snakemake --cores 8` | everything in the manuscript: TCGA analysis and simulation benchmark |
+| `snakemake --cores 8 cohort` | cohort analysis only (TCGA; see [TCGA.md](TCGA.md)) |
+| `snakemake --cores 8 simulation` | simulation benchmark only |
+| `snakemake --cores 4 --configfile config/demo.yaml` | quick test on small simulated data |
+| `snakemake -n` | dry run: list the steps that would run |
 
-Every analysis runs the same steps and writes them to `results/<name>/`:
+Snakemake runs only the steps whose outputs are missing or out of date, and runs independent steps in
+parallel (for example, the ten simulated datasets). Each step writes a log to `results/<name>/logs/`.
 
-1. **Input audit**
-2. **Model fitting**: 10 random initializations on all patients, 20 fits on random 80% patient
-   subsets and 20 fits with permuted exposure (published settings: 600 epochs, learning rate 0.003,
-   hidden dimension 8).
-3. **Weighted node score** (main output): consensus ranking of gene nodes (and, separately, of CpG
-   nodes), per-fit scores, patient-level weighted contributions, top-node heatmaps and
-   exposure-alignment summaries.
-4. **Exposure-label controls**: agreement between real-label fits and between real- and shuffled-label
-   fits, number of exposure-aligned genes, and fixed top-5% agreement.
-5. **Direction of molecular change** of the top genes, and positions of marker genes (`--markers`).
-6. **Gene-signature representation** (optional, with `--gmt`): predefined MSigDB signatures among the
-   top genes under real and shuffled labels.
-7. **Model figures and reproducibility** (fit diagnostics, node and edge priorities, held-out and
-   ranking stability).
+**Cohort analysis** (`results/<cohort name>/`):
 
-## Running on simulated data
+| Step (rule) | Output |
+|---|---|
+| `audit_inputs` | `input_audit/`: input checks |
+| `fit_model` | `model/`: 10 initializations, 20 fits on random 80% patient subsets, 20 fits with permuted exposure |
+| `weighted_node_score` | `weighted_node_score/` (**main output**); Figure 3B–C |
+| `label_controls` | `label_controls/`: real- vs shuffled-label statistics; Supplementary Figures 10–11 |
+| `held_out_summary` | `reproducibility/`: held-out agreement and ranking stability |
+| `direction_of_change`, `marker_ranks` | `genes/`: measured direction of change of the top genes; marker positions |
+| `gene_signatures` | `gene_signatures/`: MSigDB signature representation; Supplementary Figures 9, 12, 13 |
+| `cohort_figures` | Figure 3A; Supplementary Figures 6–8 |
+
+**Simulation benchmark** (`results/<simulation name>/`):
+
+| Step (rule) | Output |
+|---|---|
+| `simulate_dataset` | `data/seed_<n>/`: one independent simulated dataset per seed |
+| `fit_simulated`, `weighted_simulated` | `seed_<n>/model/`, `seed_<n>/weighted_node_score/` |
+| `simulation_tables` | `tables/`: AUROCs, top-k recovery, repetition controls, design checks |
+| `simulation_figures` | Figure 2B–D; Supplementary Figures 1–5 |
+
+All figures are written to `figures/` as PDF and PNG, named after the manuscript figure they
+correspond to (e.g. `Figure_3A.pdf`, `Supplementary_Figure_07.pdf`); figure data are saved next to
+them as CSV. Figure 1 and Figure 2A are schematics and are not generated.
+
+## Simulation design
 
 The simulator (`src/simulation/simulate_three_set.py`) creates paired data on a regular graph (every
 node has the same degree) with three planted gene sets: **A**, whose paired changes are redistributed
 according to exposure while the total planted change is the same in every patient; **C**, with the same
 changes assigned independently of exposure; and **B**, background. Distinguishing A from C tests whether
-exposure-associated change is ranked above generic paired change.
-
-Reproduce the manuscript benchmark (500 model fits; several hours on a CPU):
-
-```bash
-python3 exposureGAT.py simulation
-```
-
-| Option | Default | Meaning |
-|---|---|---|
-| `--seeds` | 1–10 | independent datasets (graph, set assignment, exposure and noise resampled) |
-| `--patients` / `--genes` | 250 / 400 | subjects and gene nodes per dataset |
-| `--set_a` / `--set_c` | 80 / 80 | genes in sets A and C (the rest are set B) |
-| `--degree` | 8 | degree of every node |
-| `--epochs`, `--initializations`, `--subsets`, `--permutations` | 60, 10, 20, 20 | fits per dataset |
-
-Results are written to `results/simulation/`: one model and one weighted node score folder per dataset
-(`seed_<n>/model/`, `seed_<n>/weighted_node_score/`), `figures/` (Figure 2,
-`AUROC_summary.csv`, `AUROC_by_dataset.csv`, `repetition_AUROC.csv`, `topk_recovery.csv`) and
-`supplementary_figures/` (Supplementary Figures 1–5). A quick check with small settings:
-
-```bash
-python3 exposureGAT.py simulation --name sim_check --seeds 1 2 --patients 60 --genes 80 \
-  --set_a 16 --set_c 16 --degree 6 --epochs 20 --initializations 2 --subsets 2 --permutations 2
-```
+exposure-associated change is ranked above generic paired change. Settings (seeds, patients, genes, set
+sizes, degree, fits per dataset) are in the `simulation` section of `config/config.yaml`; the published
+benchmark is 10 datasets × 50 fits (several hours on a CPU).
 
 ## Running on TCGA data
 
 Follow **[TCGA.md](TCGA.md)**: download the processed inputs (Harvard Dataverse,
-https://doi.org/10.7910/DVN/ABBWZG), run `python3 exposureGAT.py tcga`, and regenerate tables and figures.
+https://doi.org/10.7910/DVN/ABBWZG) into the repository and run `snakemake --cores 8 cohort`.
 
 ## Running on your own data
 
+Copy the configuration, point the `cohort` section to your input folder and run the cohort workflow:
+
 ```bash
-python3 exposureGAT.py run --data path/to/input_folder --name my_study
+cp config/config.yaml config/my_study.yaml        # edit cohort: name, data_dir, exposure_col, ...
+snakemake --cores 8 cohort --configfile config/my_study.yaml
 ```
 
-| Option | Default | Meaning |
+| Setting (`cohort:`) | Published value | Meaning |
 |---|---|---|
-| `--epochs` | 600 | training epochs (fixed; no early stopping) |
-| `--lr` | 0.003 | learning rate |
-| `--hidden` | 8 | hidden dimension |
-| `--initializations` | 10 | fits with different random seeds |
-| `--subsets` | 20 | fits on random 80% patient subsets |
-| `--permutations` | 20 | fits with shuffled exposure |
-| `--exposure_col` | `smoking_intensity` | exposure column in the metadata |
-| `--top_k` | 100 | top nodes per patient used for stability summaries |
-| `--gamma` | 0.10 | weight of the paired-transition percentile in the weighted node score |
-| `--top_fraction` | 0.10 | fraction of genes reported as top genes |
-| `--gmt` | | folder with MSigDB GMT files (Entrez IDs, `.gmt` or zipped `.gmt.zip`; the repository includes `MSigDB/msigdb.v2026.1.Hs.entrez.gmt.zip`) for the gene-signature step |
-| `--catalog` | `resources/signature_catalog.csv` | signatures used by the gene-signature step |
-| `--markers`, `--marker_cpgs` | | Entrez IDs / CpG probes to locate in the rankings |
-| `--reference_label`, `--transition_label` | `NT`, `TP` | `tissue_type` values of the two paired states |
-| `--scaling` | `per_gene` | `per_gene` (robust per gene, fitted on the fitted patients) or `shared` (simulations) |
-| `--seed` | 42 | base random seed |
-| `--name` | data folder name | results go to `results/NAME` |
-| `--no-plots` | | write tables only |
-| `--rscript` | `Rscript` | path to Rscript, if not on the PATH |
+| `name` | `tcga` | results go to `results/<name>/` |
+| `data_dir` | `data/tcga` | input folder (format below) |
+| `exposure_col` | `smoking_intensity` | exposure column in `metadata_samples.csv` |
+| `reference_label`, `transition_label` | `NT`, `TP` | `tissue_type` values of the two paired states |
+| `epochs`, `lr`, `hidden` | 600, 0.003, 8 | training (fixed length; no early stopping) |
+| `initializations`, `subsets`, `permutations` | 10, 20, 20 | repetition analyses |
+| `top_k` | 100 | top nodes per patient for stability summaries |
+| `gamma`, `top_fraction` | 0.10, 0.10 | weighted node score settings |
+| `gmt_dir`, `catalog` | `MSigDB`, `resources/signature_catalog.csv` | gene-signature step (set `gmt_dir: ""` to skip) |
+| `marker_genes`, `marker_cpgs` | TCGA smoking anchors | Entrez IDs / CpG probes to locate in the rankings (`""` to skip) |
+| `gene_symbols` | `""` | optional CSV `entrez_id,symbol` for gene labels in Figure 3B |
+| `scaling`, `seed` | `per_gene`, 42 | feature scaling; base random seed |
 
 Exclude patients whose exposure is missing (do not code it as zero) before running:
 
@@ -154,33 +143,18 @@ sample rows. Each patient needs one reference (`NT`) and one transition (`TP`) s
 include `sim_ground_truth_nodes.csv` (`node_idx, set_membership`) for recovery metrics. Every input and
 output file is described in [FileDescription.md](FileDescription.md).
 
-## Outputs
-
-```
-results/<name>/
-  model/    fitted outputs: one folder per fit, patient and cohort node and edge priorities
-  csv/      tables          plots/  figures (PDF and PNG)          logs/  settings and step logs
-    weighted_node_score/  main output: weighted node scores, patient weighted contributions
-    label_controls/       real- versus shuffled-label agreement, aligned-gene counts, statistics
-    genes/                direction of molecular change of top genes, marker positions
-    gene_signatures/      MSigDB signature representation (with --gmt)
-    figures/              model diagnostics, node and edge priorities
-    reproducibility/      held-out agreement and ranking stability
-    input_audit/          input checks
-```
-
-Key tables:
+## Main output
 
 | File | Content |
 |---|---|
-| `csv/weighted_node_score/weighted_node_scores.csv` | **main output**: genes ranked by weighted node score, with exposure alignment and paired-transition magnitude |
-| `csv/weighted_node_score/weighted_node_scores_CpG.csv` | the same for CpG nodes, ranked among CpGs (when the graph has CpG nodes) |
-| `csv/weighted_node_score/patient_weighted_contributions.csv.gz` | top genes per patient by weighted contribution (`_CpG` file for CpGs) |
-| `csv/label_controls/statistical_comparisons.csv` | real- versus shuffled-label comparisons (run-group randomization, Holm-adjusted) |
-| `csv/genes/direction_of_change_top_genes.csv` | measured RNA and methylation change of the top genes |
-| `csv/gene_signatures/gene_signature_table.csv` | signature representation under real and shuffled labels |
-| `csv/reproducibility/Held_out_summary.csv` | in-sample fit, held-out agreement and ranking stability |
+| `weighted_node_score/weighted_node_scores.csv` | **main output**: genes ranked by weighted node score, with exposure alignment and paired-transition magnitude |
+| `weighted_node_score/weighted_node_scores_CpG.csv` | the same for CpG nodes, ranked among CpGs (when the graph has CpG nodes) |
+| `weighted_node_score/patient_weighted_contributions.csv.gz` | top genes per patient by weighted contribution (`_CpG` file for CpGs) |
+| `label_controls/statistical_comparisons.csv` | real- versus shuffled-label comparisons (run-group randomization, Holm-adjusted) |
+| `reproducibility/Held_out_summary.csv` | in-sample fit, held-out agreement and ranking stability |
 | `model/patient_node_scores.csv`, `model/patient_edge_scores.csv.gz` | node and edge priorities per patient |
+
+Every output file is described in [FileDescription.md](FileDescription.md).
 
 ## Method summary
 
@@ -218,7 +192,7 @@ between groups of fits.
 - **Exposure values must be real measurements.** Do not code missing exposure as zero; use
   `src/make_analysis_cohort.py`.
 - **The weighted node score uses the exposure labels.** Its relation to exposure is therefore not
-  independent validation; compare with the shuffled-label fits (`csv/label_controls/`).
+  independent validation; compare with the shuffled-label fits (`label_controls/`).
 - **Edges are a functional proxy.** Edge priorities describe how existing connections contribute in each
   patient; they do not establish changes in biological interactions.
 - **Covariates.** To account for known covariates, residualize exposure on them and use the residual
@@ -229,24 +203,23 @@ between groups of fits.
 ## Repository structure
 
 ```
-exposureGAT.py                       the only command to run: demo | simulation | tcga | run
+Snakefile                            the workflow (run with snakemake)
+config/config.yaml                   published settings (cohort and simulation)
+config/demo.yaml                     small settings for a quick test
 resources/signature_catalog.csv      smoking-, nicotine- and lung cancer-related MSigDB signatures (49 retained)
 MSigDB/msigdb.v2026.1.Hs.entrez.gmt.zip   MSigDB v2026.1 gene sets (Entrez IDs), read directly by the gene-signature step
 src/
   exposuregat_model.py               model fitting, scoring and repetition analyses
   data_loader.py, simulation_scaling.py   input loading, pairing and scaling
   extended_scores.py                 edge priorities and patient summaries
-  scoring/weighted_node_score.py     weighted node score (main output)
-  analysis/label_controls.py         real- versus shuffled-label controls and statistics
-  analysis/gene_signatures.py        MSigDB signature representation
-  analysis/direction_of_change.py    measured direction of change of top genes
-  analysis/marker_ranks.py           positions of marker genes and CpGs
-  analysis/held_out_summary.R        held-out agreement and ranking stability
-  plotting/                          plot_results.R, plot_label_controls.R, plot_gene_signatures.R
-  simulation/                        simulate_three_set.py, plot_simulation.py, plot_simulation_supplement.R
+  scoring/weighted_node_score.py     weighted node score (main output); Figure 3B-C
+  analysis/                          label controls, gene signatures, direction of change, marker ranks, held-out summary
+  figures/                           cohort_figures.R (Figure 3A, Supp. Figs 6-8), label_control_figures.R (10-11),
+                                     gene_signature_figures.R (9, 12, 13), simulation_figures.R (Figure 2B-D, 1-5)
+  simulation/                        simulate_three_set.py, simulation_summary.py
   audit_inputs.py, make_analysis_cohort.py, diagnose_exposure.py
   preprocessing/                     TCGA input construction, RNA normalization, missingness report
-results/  tmp/                       created at run time (not tracked)
+data/  results/                      created at run time (not tracked)
 ```
 
 ### Building TCGA inputs from raw GDC data (optional)
@@ -261,13 +234,27 @@ the archived inputs; use the archive to reproduce published results exactly.
 
 ## Requirements
 
-- Python ≥ 3.9 with numpy, pandas, scipy, torch, torch-geometric, matplotlib (and scikit-learn for diagnostics)
+- Python ≥ 3.9 with snakemake, numpy, pandas, scipy, torch, torch-geometric, matplotlib (and scikit-learn for diagnostics)
 - R ≥ 4.1 with dplyr, tidyr, readr, ggplot2, patchwork, jsonlite, ggpubr
 - CPU is sufficient; memory use grows with patients × edges (TCGA run: about 4 GB of output for 50 fits)
 
+Versions used for the published analysis: Python 3.11.11, PyTorch 2.3.0, PyTorch Geometric 2.7.0,
+NumPy 1.26.4, pandas 2.3.3, SciPy 1.16.3; R 4.4.0. The workflow was tested with Snakemake 9. If `pip install torch-geometric` fails, install
+PyTorch first and follow https://pytorch-geometric.readthedocs.io for your platform.
+
+**Reproducibility.** All fits are seeded (`seed` in the configuration, default 42), but floating-point results can differ
+slightly across operating systems, CPU types and library versions. Reruns therefore reproduce the
+published values closely but not always to the last digit; the published outputs were produced with
+the versions above.
+
+**Gene sets.** `MSigDB/msigdb.v2026.1.Hs.entrez.gmt.zip` is MSigDB v2026.1 (https://www.gsea-msigdb.org),
+distributed under the MSigDB license terms; some collections (for example KEGG) carry their own terms
+of use.
+
 ## Citation
 
-If you use ExposureGAT, please cite: *[citation to be added]*
+If you use ExposureGAT, please cite: Kaushik A, Johnson M. ExposureGAT: An Exposure-Aware Graph Attention
+Framework for Integrative Multi-Omics Data Analysis. *[journal and year to be added]*
 
 ## License
 
