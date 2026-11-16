@@ -18,9 +18,9 @@ real-label initialization fits|. For each patient, the top fraction of nodes by 
 
 Outputs (in --out), gene nodes: weighted_node_scores.csv (main output), weighted_node_scores_by_fit.csv.gz,
 patient_weighted_contributions.csv.gz, top_genes_signed_contributions.csv, top_gene_alignment_bins.csv
-and two figures (top-gene heatmap; exposure alignment of the top 5/10/20% of genes). Other node types
-get the same files with the type as suffix (e.g. weighted_node_scores_CpG.csv,
-top_CpGs_signed_contributions.csv). settings.json lists all node types.
+and, with --figures, Figure 3B (top-gene heatmap) and Figure 3C (exposure alignment of the top
+5/10/20% of genes). Other node types get the same tables with the type as suffix (e.g.
+weighted_node_scores_CpG.csv). settings.json lists all node types.
 No retraining; reads the saved fits written by exposuregat_model.py.
 """
 import argparse
@@ -173,10 +173,14 @@ def score_type(a, out, nodes, fits, ids, idcol, suffix, noun):
     hist = pd.DataFrame(hist)
     stem = 'gene' if noun == 'genes' else noun.rstrip('s')
     hist.to_csv(out / f'top_{stem}_alignment_bins.csv', index=False)
-    if not a.no_plots:
-        title = 'Top_genes' if noun == 'genes' else f'Top_{noun}'
-        plot_heatmap(c_med[po][:, top].T, labels, exposure[po], w[top], out / f'{title}_signed_contributions_heatmap', noun)
-        plot_alignment(hist, out / f'Top_{stem}_exposure_alignment', noun)
+    if a.figures and noun == 'genes':
+        # Manuscript Figure 3B (top-gene heatmap) and Figure 3C (alignment of the top 5/10/20%).
+        fig = Path(a.figures); fig.mkdir(parents=True, exist_ok=True)
+        if a.symbols:
+            sym = pd.read_csv(a.symbols, dtype=str).set_index('entrez_id')['symbol']
+            labels = np.array([sym.get(x, x) for x in labels])
+        plot_heatmap(c_med[po][:, top].T, labels, exposure[po], w[top], fig / 'Figure_3B', noun)
+        plot_alignment(hist, fig / 'Figure_3C', noun)
     print(f'Weighted node score ({noun}): {len(idx)} nodes, top {k} exported.')
     return dict(nodes=len(idx), top_k=k)
 
@@ -220,7 +224,8 @@ if __name__ == '__main__':
     p.add_argument('--gamma', type=float, default=.10)
     p.add_argument('--top_fraction', type=float, default=.10)
     p.add_argument('--heatmap_genes', type=int, default=30, help='nodes shown in each top-node heatmap')
-    p.add_argument('--no-plots', dest='no_plots', action='store_true')
+    p.add_argument('--figures', default='', help='folder for Figure 3B-C (gene nodes); omit to skip figures')
+    p.add_argument('--symbols', default='', help='optional CSV with columns entrez_id,symbol for heatmap labels')
     a = p.parse_args()
     if not (0 <= a.gamma <= 1 and 0 < a.top_fraction <= 1):
         p.error('gamma must be in [0,1] and top_fraction in (0,1]')

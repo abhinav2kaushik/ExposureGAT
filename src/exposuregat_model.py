@@ -1,5 +1,5 @@
 """ExposureGAT model: fitting, scoring and repetition controls (initialization,
-patient-subset and exposure-permutation fits). Called by exposureGAT.py; can also be run directly.
+patient-subset and exposure-permutation fits). Called by the Snakemake workflow (Snakefile); can also be run directly.
 """
 import argparse,json,sys
 from pathlib import Path

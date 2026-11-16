@@ -79,6 +79,9 @@ def main(a):
     pd.DataFrame([dict(run1=names[i], run2=names[j], comparison=group(j), rank_spearman=r, top100_jaccard=jc)
                   for i, j, r, jc in agreement(ww, pairs, idx, k)]).to_csv(out / 'cohort_ranking_agreement.csv', index=False)
     counts = pd.DataFrame(counts); counts.to_csv(out / 'alignment_counts.csv', index=False)
+    (counts.assign(condition=np.where(counts.kind == 'initialization', 'Real labels', 'Shuffled labels'))
+        .groupby(['mode', 'threshold', 'condition'])['count'].agg(['mean', 'median', 'std']).reset_index()
+        .rename(columns={'std': 'sd'}).to_csv(out / 'alignment_count_summary.csv', index=False))
 
     # Run-group randomization tests.
     n = len(kinds)

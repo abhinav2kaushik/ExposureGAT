@@ -15,18 +15,14 @@
 #      patient was included vs held out.
 #   5. Cohort ranking stability: pairwise agreement of cohort node rankings
 #      across seeds and across splits.
-# Writes tables and one figure.
+# Writes tables only (the values reported in the manuscript text).
 #
 #   Rscript held_out_summary.R ANALYSIS_DIR OUTPUT_DIR
-# Example:
-#   Rscript held_out_summary.R "$V/TCGA_clean59_e600/analysis" "$V/TCGA_clean59_e600/held_out"
-# install.packages(c('dplyr', 'tidyr', 'readr', 'ggplot2', 'patchwork', 'jsonlite'))
+
 
 library(dplyr)
 library(tidyr)
 library(readr)
-library(ggplot2)
-library(patchwork)
 library(jsonlite)
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -34,7 +30,6 @@ if (length(args) < 2) stop('Usage: Rscript held_out_summary.R ANALYSIS_DIR OUTPU
 analysis_dir <- args[1]; output_dir <- args[2]
 if (!dir.exists(analysis_dir)) stop('Folder not found: ', analysis_dir)
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
-theme_set(theme_bw(base_size = 11) + theme(plot.title = element_text(face = 'bold')))
 read_table <- function(path) read_csv(path, show_col_types = FALSE, progress = FALSE)
 set.seed(42) # label-shuffle reference only
 config <- fromJSON(file.path(analysis_dir, 'config.json'))
@@ -160,37 +155,5 @@ summary <- tibble(
             med_iqr(cohort_stability$topk_jaccard[cohort_stability$comparison == 'Across 80% splits'])))
 write_csv(summary, file.path(output_dir, 'Held_out_summary.csv'))
 print(as.data.frame(summary), right = FALSE)
-
-fit_long <- bind_rows(per_seed %>% transmute(group = 'Training\n(all patients, seeds)', value = fitted_rho),
-                      per_split %>% transmute(group = 'Training\n(80% splits)', value = training_rho),
-                      per_split %>% transmute(group = 'Held out\n(20% splits)', value = held_out_rho)) %>%
-  mutate(group = factor(group, levels = c('Training\n(all patients, seeds)', 'Training\n(80% splits)', 'Held out\n(20% splits)')))
-p1 <- ggplot(fit_long, aes(group, value)) + geom_hline(yintercept = 0, linetype = 'dashed', color = 'grey50') +
-  geom_boxplot(outlier.shape = NA, width = 0.45, fill = '#DCE9F2') +
-  geom_jitter(width = 0.08, height = 0, size = 1.8, alpha = 0.8, color = '#2886B5') +
-  coord_cartesian(ylim = c(-1, 1)) +
-  labs(title = 'A. Exposure-rank agreement', x = NULL, y = 'Spearman (score vs recorded exposure)',
-       subtitle = paste0('Pooled held-out Spearman = ', fmt(pooled_rho), ' (n = ', nrow(pooled), ')'))
-stab_long <- patient_stability %>% pivot_longer(-patient_id, names_to = 'group', values_to = 'value') %>%
-  filter(is.finite(value)) %>%
-  mutate(group = factor(recode(group, across_seeds = 'Across seeds', across_splits_included = 'Splits,\nincluded',
-                               across_splits_held_out = 'Splits,\nheld out'),
-                        levels = c('Across seeds', 'Splits,\nincluded', 'Splits,\nheld out')))
-p2 <- ggplot(stab_long, aes(group, value)) + geom_hline(yintercept = chance_topk, linetype = 'dashed', color = 'grey50') +
-  geom_boxplot(outlier.shape = NA, width = 0.45, fill = '#F2E3DC') +
-  geom_jitter(width = 0.08, height = 0, size = 1.2, alpha = 0.6, color = '#C17A26') +
-  coord_cartesian(ylim = c(0, 1)) +
-  labs(title = paste0('B. Patient top-', k, ' node retention'), x = NULL,
-       y = 'Fraction of fits keeping the node in top list', subtitle = 'Dashed = chance')
-p3 <- ggplot(cohort_stability, aes(comparison, spearman)) +
-  geom_boxplot(outlier.shape = NA, width = 0.45, fill = '#E8E0F0') +
-  geom_jitter(width = 0.08, height = 0, size = 1, alpha = 0.5, color = '#8361BB') +
-  coord_cartesian(ylim = c(-0.2, 1)) +
-  labs(title = 'C. Cohort ranking agreement', x = NULL, y = 'Spearman between run pairs')
-fig <- p1 + p2 + p3 + plot_annotation(caption = paste0(config$epochs, ' epochs; ', nrow(per_seed), ' seeds; ',
-  nrow(per_split), ' splits of 80%/20%. Held-out patients were not used to fit model parameters, scalers or the cohort reference.'))
-ggsave(file.path(output_dir, 'Held_out_and_stability.pdf'), fig, width = 15, height = 5.5)
-ggsave(file.path(output_dir, 'Held_out_and_stability.png'), fig, width = 15, height = 5.5, dpi = 200)
-
 
 message('Saved to ', normalizePath(output_dir))
